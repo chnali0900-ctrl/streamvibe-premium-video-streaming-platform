@@ -1,6 +1,6 @@
 # StreamVibe
 
-[cloudflarebutton]
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/chnali0900-ctrl/streamvibe-premium-video-streaming-platform)
 
 A full-stack real-time chat application powered by Cloudflare Workers and Durable Objects. Features user management, chat boards, and message persistence with a modern React frontend using shadcn/ui and Tailwind CSS.
 
@@ -115,7 +115,7 @@ curl -X POST http://localhost:3000/api/chats/c1/messages \
    bun run deploy
    ```
    Or use the one-click deploy:
-   [cloudflarebutton]
+   [![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/chnali0900-ctrl/streamvibe-premium-video-streaming-platform)
 
 4. **Custom Domain** (optional):
    ```bash
