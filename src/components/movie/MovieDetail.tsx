@@ -11,6 +11,7 @@ import { MovieCard } from './MovieCard';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
 export function MovieDetail() {
   const selectedId = useMovieStore(s => s.selectedMovieId);
   const setSelectedId = useMovieStore(s => s.setSelectedMovieId);

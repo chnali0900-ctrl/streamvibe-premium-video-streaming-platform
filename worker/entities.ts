@@ -1,4 +1,4 @@
-import { IndexedEntity } from "./core-utils";
+import { IndexedEntity, type Env } from "./core-utils";
 import type { UserProfile, UserHistoryItem } from "../shared/types";
 import { MOCK_USER_PROFILE } from "../shared/mock-data";
 export class UserProfileEntity extends IndexedEntity<UserProfile> {
@@ -42,5 +42,14 @@ export class UserProfileEntity extends IndexedEntity<UserProfile> {
       const filtered = s.history.filter(h => h.movieId !== item.movieId);
       return { ...s, history: [item, ...filtered].slice(0, 20) };
     });
+  }
+
+  static async ensureSeed(env: Env): Promise<void> {
+    const list = await IndexedEntity.list<UserProfile>(env, UserProfileEntity.entityName, null, 1);
+    if (list.items.length === 0) {
+      for (const data of UserProfileEntity.seedData) {
+        await UserProfileEntity.create(env, data);
+      }
+    }
   }
 }
