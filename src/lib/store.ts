@@ -28,6 +28,7 @@ interface MovieState {
   setLanguage: (lang: Language) => void;
   toggleSidebar: () => void;
   setSidebarOpen: (open: boolean) => void;
+  resetFilters: () => void;
 }
 export const useMovieStore = create<MovieState>((set) => ({
   movies: [],
@@ -49,9 +50,9 @@ export const useMovieStore = create<MovieState>((set) => ({
   setSelectedMovieId: (selectedMovieId) => set({ selectedMovieId }),
   setLoading: (isLoading) => set({ isLoading }),
   setSearchQuery: (searchQuery) => set({ searchQuery }),
-  setGenre: (activeGenre) => set({ activeGenre }),
+  setGenre: (activeGenre) => set({ activeGenre, searchQuery: '' }), // Clearing search when choosing genre improves discovery UX
   setMinRating: (minRating) => set({ minRating }),
-  setContentType: (contentType) => set({ contentType }),
+  setContentType: (contentType) => set({ contentType, searchQuery: '' }),
   setUserProfile: (userProfile) => set({ userProfile }),
   setLanguage: (language) => {
     const direction = language === 'fa' ? 'rtl' : 'ltr';
@@ -61,4 +62,10 @@ export const useMovieStore = create<MovieState>((set) => ({
   },
   toggleSidebar: () => set((state) => ({ isSidebarOpen: !state.isSidebarOpen })),
   setSidebarOpen: (isSidebarOpen) => set({ isSidebarOpen }),
+  resetFilters: () => set({
+    searchQuery: '',
+    activeGenre: 'All',
+    minRating: 0,
+    contentType: 'all'
+  }),
 }));

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo } from 'react';
-import { Search, Clapperboard, User, History, Bookmark, TrendingUp } from 'lucide-react';
+import { Search, Clapperboard, User, History, Bookmark, TrendingUp, RotateCcw } from 'lucide-react';
 import { useMovieStore } from '@/lib/store';
 import { api } from '@/lib/api-client';
 import { HeroSection } from '@/components/movie/HeroSection';
@@ -14,8 +14,8 @@ import { Toaster } from '@/components/ui/sonner';
 import { Movie, UserProfile } from '@shared/types';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Button } from '@/components/ui/button';
 export function HomePage() {
-  // Store Selectors (One field per call)
   const movies = useMovieStore(s => s.movies);
   const allMovies = useMovieStore(s => s.allMovies);
   const featuredMovie = useMovieStore(s => s.featuredMovie);
@@ -27,36 +27,33 @@ export function HomePage() {
   const userProfile = useMovieStore(s => s.userProfile);
   const direction = useMovieStore(s => s.direction);
   const language = useMovieStore(s => s.language);
-  // Store Actions
   const setMovies = useMovieStore(s => s.setMovies);
   const setAllMovies = useMovieStore(s => s.setAllMovies);
   const setFeaturedMovie = useMovieStore(s => s.setFeaturedMovie);
   const setLoading = useMovieStore(s => s.setLoading);
   const setSearchQuery = useMovieStore(s => s.setSearchQuery);
   const setUserProfile = useMovieStore(s => s.setUserProfile);
-  // Initialize data (Featured, Profile, and Full Catalog)
+  const resetFilters = useMovieStore(s => s.resetFilters);
   useEffect(() => {
     let mounted = true;
     const init = async () => {
       try {
-        const [featured, profile, catalog] = await Promise.all([
+        const [featured, profile, catalog] = await Promise.allSettled([
           api<Movie>('/api/movies/featured'),
           api<UserProfile>('/api/user/profile'),
           api<{ items: Movie[] }>('/api/movies?limit=100')
         ]);
-        if (mounted) {
-          setFeaturedMovie(featured);
-          setUserProfile(profile);
-          setAllMovies(catalog.items || []);
-        }
+        if (!mounted) return;
+        if (featured.status === 'fulfilled') setFeaturedMovie(featured.value);
+        if (profile.status === 'fulfilled') setUserProfile(profile.value);
+        if (catalog.status === 'fulfilled') setAllMovies(catalog.value.items || []);
       } catch (err) {
-        console.error('Init failed', err);
+        console.error('Core init failed', err);
       }
     };
     init();
     return () => { mounted = false; };
   }, [setFeaturedMovie, setUserProfile, setAllMovies]);
-  // Handle filtered movie fetching for discovery grid
   useEffect(() => {
     let mounted = true;
     const fetchMovies = async () => {
@@ -69,16 +66,14 @@ export function HomePage() {
         if (contentType && contentType !== 'all') params.append('type', contentType);
         params.append('limit', '40');
         const data = await api<{ items: Movie[] }>(`/api/movies?${params.toString()}`);
-        if (mounted) {
-          setMovies(data.items || []);
-        }
+        if (mounted) setMovies(data.items || []);
       } catch (err) {
-        console.error('Failed to fetch movies', err);
+        console.error('Discovery fetch failed', err);
       } finally {
         if (mounted) setLoading(false);
       }
     };
-    const timer = setTimeout(fetchMovies, 300);
+    const timer = setTimeout(fetchMovies, 400);
     return () => {
       mounted = false;
       clearTimeout(timer);
@@ -89,36 +84,37 @@ export function HomePage() {
     search: language === 'fa' ? 'جستجوی فیلم، سریال...' : 'Search titles, actors...',
     results: language === 'fa' ? 'نتایج برای' : 'Results for',
     collection: language === 'fa' ? 'مجموعه' : 'Collection',
-    trending: language === 'fa' ? 'برترین‌های امرو��' : 'Trending Now',
+    trending: language === 'fa' ? 'برترین‌های امروز' : 'Trending Now',
     myList: language === 'fa' ? 'لیست من' : 'My List',
-    continue: language === 'fa' ? 'ادامه تماشا' : 'Continue Watching'
+    continue: language === 'fa' ? 'ادامه تماشا' : 'Continue Watching',
+    noResults: language === 'fa' ? 'عنوانی یافت نشد' : 'No titles found',
+    reset: language === 'fa' ? 'تنظیم مجدد فیلترها' : 'Reset Filters'
   }), [language]);
-  // Personalized Rows from FULL catalog
-  const favoriteMovies = useMemo(() => 
+  const favoriteMovies = useMemo(() =>
     allMovies.filter(m => userProfile?.favorites.includes(m.id)),
     [allMovies, userProfile?.favorites]
   );
-  const historyMovies = useMemo(() => 
+  const historyMovies = useMemo(() =>
     allMovies.filter(m => userProfile?.history.some(h => h.movieId === m.id)),
     [allMovies, userProfile?.history]
   );
   return (
-    <div className="min-h-screen bg-background text-foreground selection:bg-red-600/30 font-sans" dir={direction}>
+    <div className="min-h-screen bg-background text-foreground font-sans selection:bg-red-600/30" dir={direction}>
       <SidebarProvider defaultOpen={true}>
         <AppSidebar />
         <SidebarInset>
-          <header className="sticky top-0 z-40 w-full border-b border-white/5 bg-background/80 backdrop-blur-xl transition-all duration-300">
+          <header className="sticky top-0 z-40 w-full border-b border-white/5 bg-background/80 backdrop-blur-xl transition-all">
             <div className="flex h-16 items-center gap-4 px-6">
-              <SidebarTrigger />
+              <SidebarTrigger className="hover:bg-zinc-800 transition-colors" />
               <div className="flex items-center gap-2 mr-auto rtl:mr-0 rtl:ml-auto">
                 <Clapperboard className="w-6 h-6 text-red-600" />
-                <span className="text-xl font-bold tracking-tighter uppercase">{t.brand}</span>
+                <span className="text-xl font-bold tracking-tighter uppercase hidden sm:block">{t.brand}</span>
               </div>
               <div className="relative max-w-md w-full hidden md:block">
                 <Search className={`absolute ${direction === 'rtl' ? 'right-3' : 'left-3'} top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500`} />
                 <Input
                   placeholder={t.search}
-                  className={`${direction === 'rtl' ? 'pr-10' : 'pl-10'} bg-zinc-900/50 border-zinc-800 focus:ring-red-600/50 h-10`}
+                  className={`${direction === 'rtl' ? 'pr-10' : 'pl-10'} bg-zinc-900 border-zinc-800 focus:ring-red-600/50 h-10`}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
@@ -127,7 +123,7 @@ export function HomePage() {
                 <LanguageToggle />
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <button className="h-9 w-9 rounded-full bg-zinc-800 flex items-center justify-center cursor-pointer border border-zinc-700 overflow-hidden ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                    <button className="h-9 w-9 rounded-full bg-zinc-800 flex items-center justify-center cursor-pointer border border-zinc-700 overflow-hidden hover:border-zinc-500 transition-colors">
                       {userProfile?.avatarUrl ? (
                         <img src={userProfile.avatarUrl} alt="User" className="w-full h-full object-cover" />
                       ) : (
@@ -136,106 +132,107 @@ export function HomePage() {
                     </button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-56 bg-zinc-950 border-zinc-800 text-white shadow-2xl">
-                    <DropdownMenuItem className="focus:bg-zinc-800 cursor-pointer">My Favorites</DropdownMenuItem>
-                    <DropdownMenuItem className="focus:bg-zinc-800 cursor-pointer">Watchlist</DropdownMenuItem>
-                    <DropdownMenuItem className="focus:bg-zinc-800 cursor-pointer border-t border-zinc-800 mt-1">Settings</DropdownMenuItem>
+                    <DropdownMenuItem className="focus:bg-zinc-800 cursor-pointer">Profile</DropdownMenuItem>
+                    <DropdownMenuItem className="focus:bg-zinc-800 cursor-pointer">Subscription</DropdownMenuItem>
                     <DropdownMenuItem className="focus:bg-zinc-800 text-red-400 cursor-pointer">Logout</DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>
             </div>
           </header>
-          <main className="flex-1 overflow-x-hidden">
-            <HeroSection movie={featuredMovie} />
-            <div className="max-w-[1600px] mx-auto px-6 lg:px-12 py-12 flex flex-col lg:flex-row gap-10">
-              <aside className="hidden lg:block w-64 flex-shrink-0 sticky top-28 self-start">
-                <FilterSidebar />
-              </aside>
-              <div className="flex-1 space-y-12">
-                {!searchQuery && activeGenre === 'All' && !isLoading && (
-                  <>
-                    {historyMovies.length > 0 && (
-                      <section className="space-y-4 animate-fade-in">
-                        <div className="flex items-center gap-2">
-                          <History className="w-5 h-5 text-red-600" />
-                          <h2 className="text-xl font-bold tracking-tight">{t.continue}</h2>
-                        </div>
-                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
-                          {historyMovies.map((movie) => (
-                            <MovieCard key={`history-${movie.id}`} movie={movie} />
-                          ))}
-                        </div>
-                      </section>
-                    )}
-                    {favoriteMovies.length > 0 && (
-                      <section className="space-y-4 animate-fade-in">
-                        <div className="flex items-center gap-2">
-                          <Bookmark className="w-5 h-5 text-red-600" />
-                          <h2 className="text-xl font-bold tracking-tight">{t.myList}</h2>
-                        </div>
-                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
-                          {favoriteMovies.map((movie) => (
-                            <MovieCard key={`fav-${movie.id}`} movie={movie} />
-                          ))}
-                        </div>
-                      </section>
-                    )}
-                  </>
-                )}
-                <section className="space-y-6">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <TrendingUp className="w-5 h-5 text-red-600" />
-                      <h2 className="text-2xl font-bold tracking-tight">
-                        {searchQuery ? `${t.results} "${searchQuery}"` : activeGenre !== 'All' ? `${activeGenre} ${t.collection}` : t.trending}
-                      </h2>
-                    </div>
-                    {!isLoading && <span className="text-sm text-zinc-500 font-medium">{movies.length} titles</span>}
-                  </div>
-                  {isLoading ? (
-                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
-                      {[...Array(10)].map((_, i) => (
-                        <div key={i} className="space-y-3">
-                          <Skeleton className="aspect-[2/3] w-full rounded-lg bg-zinc-900" />
-                          <Skeleton className="h-4 w-3/4 bg-zinc-900" />
-                          <Skeleton className="h-3 w-1/2 bg-zinc-900" />
-                        </div>
-                      ))}
-                    </div>
-                  ) : movies.length > 0 ? (
-                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
-                      {movies.map((movie) => (
-                        <MovieCard key={movie.id} movie={movie} />
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="flex flex-col items-center justify-center py-24 text-zinc-500 space-y-4 border border-dashed border-zinc-800 rounded-xl">
-                      <Clapperboard className="w-16 h-16 opacity-10" />
-                      <p className="text-lg font-medium">No titles found.</p>
-                      <button
-                        onClick={() => { setSearchQuery(''); }}
-                        className="text-red-500 hover:underline text-sm"
-                      >
-                        Clear search and filters
-                      </button>
-                    </div>
+          <main className="flex-1">
+            {!searchQuery && activeGenre === 'All' && <HeroSection movie={featuredMovie} />}
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-10 lg:py-12">
+              <div className="flex flex-col lg:flex-row gap-10">
+                <aside className="hidden lg:block w-64 flex-shrink-0 sticky top-28 self-start">
+                  <FilterSidebar />
+                </aside>
+                <div className="flex-1 space-y-16">
+                  {!searchQuery && activeGenre === 'All' && !isLoading && (
+                    <>
+                      {historyMovies.length > 0 && (
+                        <section className="space-y-6">
+                          <div className="flex items-center gap-2">
+                            <History className="w-5 h-5 text-red-600" />
+                            <h2 className="text-2xl font-bold tracking-tight">{t.continue}</h2>
+                          </div>
+                          <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-6">
+                            {historyMovies.map((movie) => (
+                              <MovieCard key={`history-${movie.id}`} movie={movie} />
+                            ))}
+                          </div>
+                        </section>
+                      )}
+                      {favoriteMovies.length > 0 && (
+                        <section className="space-y-6">
+                          <div className="flex items-center gap-2">
+                            <Bookmark className="w-5 h-5 text-red-600" />
+                            <h2 className="text-2xl font-bold tracking-tight">{t.myList}</h2>
+                          </div>
+                          <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-6">
+                            {favoriteMovies.map((movie) => (
+                              <MovieCard key={`fav-${movie.id}`} movie={movie} />
+                            ))}
+                          </div>
+                        </section>
+                      )}
+                    </>
                   )}
-                </section>
+                  <section className="space-y-8">
+                    <div className="flex items-center justify-between border-b border-white/5 pb-4">
+                      <div className="flex items-center gap-2">
+                        <TrendingUp className="w-5 h-5 text-red-600" />
+                        <h2 className="text-2xl md:text-3xl font-bold tracking-tight">
+                          {searchQuery ? `${t.results} "${searchQuery}"` : activeGenre !== 'All' ? `${activeGenre} ${t.collection}` : t.trending}
+                        </h2>
+                      </div>
+                      {!isLoading && <span className="text-sm text-zinc-500 font-medium">{movies.length} titles</span>}
+                    </div>
+                    {isLoading ? (
+                      <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-6">
+                        {[...Array(8)].map((_, i) => (
+                          <div key={i} className="space-y-3">
+                            <Skeleton className="aspect-poster w-full rounded-xl bg-zinc-900" />
+                            <Skeleton className="h-5 w-3/4 bg-zinc-900" />
+                            <Skeleton className="h-4 w-1/2 bg-zinc-900" />
+                          </div>
+                        ))}
+                      </div>
+                    ) : movies.length > 0 ? (
+                      <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-6">
+                        {movies.map((movie) => (
+                          <MovieCard key={movie.id} movie={movie} />
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-center justify-center py-32 text-center space-y-6 border border-dashed border-zinc-800 rounded-3xl bg-zinc-900/10">
+                        <Clapperboard className="w-16 h-16 text-zinc-800" />
+                        <div className="space-y-2">
+                          <p className="text-xl font-bold text-zinc-300">{t.noResults}</p>
+                          <p className="text-zinc-500 max-w-xs mx-auto text-sm">Try adjusting your filters or search query to find what you're looking for.</p>
+                        </div>
+                        <Button variant="outline" onClick={resetFilters} className="gap-2 border-zinc-700 hover:bg-zinc-800">
+                          <RotateCcw className="w-4 h-4" /> {t.reset}
+                        </Button>
+                      </div>
+                    )}
+                  </section>
+                </div>
               </div>
             </div>
           </main>
-          <footer className="border-t border-white/5 py-12 px-12 mt-12 bg-zinc-950/80">
-            <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-8 text-center md:text-left">
+          <footer className="border-t border-white/5 py-16 px-8 mt-20 bg-black/40">
+            <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-10">
               <div className="flex items-center gap-2">
-                <Clapperboard className="w-5 h-5 text-red-600" />
-                <span className="text-lg font-bold tracking-tighter uppercase">{t.brand}</span>
+                <Clapperboard className="w-6 h-6 text-red-600" />
+                <span className="text-xl font-bold tracking-tighter uppercase">{t.brand}</span>
               </div>
-              <div className="flex gap-6 text-xs text-zinc-500">
-                <a href="#" className="hover:text-white transition-colors">Privacy Policy</a>
-                <a href="#" className="hover:text-white transition-colors">Terms of Service</a>
-                <a href="#" className="hover:text-white transition-colors">Help Center</a>
+              <div className="flex flex-wrap justify-center gap-8 text-xs font-medium text-zinc-500 uppercase tracking-widest">
+                <a href="#" className="hover:text-white transition-colors">Privacy</a>
+                <a href="#" className="hover:text-white transition-colors">Terms</a>
+                <a href="#" className="hover:text-white transition-colors">Cookies</a>
               </div>
-              <p className="text-xs text-zinc-600">© 2025 {t.brand} Entertainment Inc.</p>
+              <p className="text-xs text-zinc-600 font-mono">© 2025 STREAMVIBE_LABS</p>
             </div>
           </footer>
         </SidebarInset>

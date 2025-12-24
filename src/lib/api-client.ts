@@ -1,8 +1,34 @@
 import { ApiResponse } from "../../shared/types"
-
 export async function api<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(path, { headers: { 'Content-Type': 'application/json' }, ...init })
-  const json = (await res.json()) as ApiResponse<T>
-  if (!res.ok || !json.success || json.data === undefined) throw new Error(json.error || 'Request failed')
-  return json.data
+  try {
+    const res = await fetch(path, { 
+      headers: { 'Content-Type': 'application/json' }, 
+      ...init 
+    });
+    const contentType = res.headers.get("content-type");
+    if (!contentType || !contentType.includes("application/json")) {
+      const text = await res.text();
+      console.error(`[API ERROR] Non-JSON response from ${path}:`, {
+        status: res.status,
+        statusText: res.statusText,
+        bodyPreview: text.slice(0, 200)
+      });
+      throw new Error(`Server returned non-JSON response (${res.status} ${res.statusText})`);
+    }
+    const json = (await res.json()) as ApiResponse<T>;
+    if (!res.ok || !json.success) {
+      console.error(`[API ERROR] Request to ${path} failed:`, json.error || res.statusText);
+      throw new Error(json.error || `Request failed with status ${res.status}`);
+    }
+    if (json.data === undefined) {
+      throw new Error('API response success but data is missing');
+    }
+    return json.data;
+  } catch (error) {
+    if (error instanceof Error) {
+      console.warn(`[API CLIENT] Error fetching ${path}:`, error.message);
+      throw error;
+    }
+    throw new Error('An unknown network error occurred');
+  }
 }

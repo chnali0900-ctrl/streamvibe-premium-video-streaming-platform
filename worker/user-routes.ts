@@ -12,6 +12,7 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
       const search = c.req.query('search');
       const type = c.req.query('type');
       const sortBy = c.req.query('sortBy') || 'newest';
+      console.log(`[WORKER] Fetch movies: genre=${genre}, search=${search}, rating=${minRating}, type=${type}`);
       let filtered = [...MOCK_MOVIES];
       if (search) {
         const query = search.toLowerCase();
@@ -31,7 +32,6 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
       if (type && type !== 'all') {
         filtered = filtered.filter(m => m.type === type);
       }
-      // Sorting
       if (sortBy === 'rating') filtered.sort((a, b) => b.rating - a.rating);
       else if (sortBy === 'newest') filtered.sort((a, b) => b.releaseYear - a.releaseYear);
       const limit = parseInt(c.req.query('limit') || '20');
@@ -41,6 +41,7 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
         total: filtered.length
       });
     } catch (err) {
+      console.error(`[WORKER] movies endpoint error:`, err);
       return bad(c, 'Failed to fetch movies');
     }
   });
@@ -55,26 +56,36 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
   });
   // User Profile & Personalization
   app.get('/api/user/profile', async (c) => {
-    const userId = 'u1'; // Hardcoded for Phase 2 demo
-    const entity = new UserProfileEntity(c.env, userId);
-    return ok(c, await entity.getState());
+    try {
+      const userId = 'u1';
+      await UserProfileEntity.ensureSeed(c.env);
+      const entity = new UserProfileEntity(c.env, userId);
+      const profile = await entity.getState();
+      return ok(c, profile);
+    } catch (err) {
+      console.error(`[WORKER] profile endpoint error:`, err);
+      return bad(c, 'Failed to fetch user profile');
+    }
   });
   app.post('/api/user/favorites', async (c) => {
     const { movieId } = await c.req.json();
+    if (!movieId) return bad(c, 'movieId required');
     const entity = new UserProfileEntity(c.env, 'u1');
     const isFav = await entity.toggleFavorite(movieId);
     return ok(c, { isFavorite: isFav });
   });
   app.post('/api/user/watchlist', async (c) => {
     const { movieId } = await c.req.json();
+    if (!movieId) return bad(c, 'movieId required');
     const entity = new UserProfileEntity(c.env, 'u1');
     const inList = await entity.toggleWatchlist(movieId);
     return ok(c, { inWatchlist: inList });
   });
   app.post('/api/user/history', async (c) => {
     const { movieId, progress } = await c.req.json();
+    if (!movieId) return bad(c, 'movieId required');
     const entity = new UserProfileEntity(c.env, 'u1');
-    await entity.updateHistory({ movieId, progress, watchedAt: Date.now() });
+    await entity.updateHistory({ movieId, progress: progress ?? 0, watchedAt: Date.now() });
     return ok(c, { success: true });
   });
 }
