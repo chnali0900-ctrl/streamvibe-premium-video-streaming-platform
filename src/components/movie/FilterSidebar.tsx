@@ -1,6 +1,6 @@
 import React from 'react';
 import { useMovieStore } from '@/lib/store';
-import { GENRES } from '@/shared/mock-data';
+import { GENRES } from '@shared/mock-data';
 import {
   Accordion,
   AccordionContent,

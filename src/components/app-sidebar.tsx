@@ -1,6 +1,6 @@
 import React from "react";
 import { Home, Clapperboard, MonitorPlay, Bookmark, Search, Sparkles, Filter } from "lucide-react";
-import { GENRES } from "@/shared/mock-data";
+import { GENRES } from "@shared/mock-data";
 import {
   Sidebar,
   SidebarContent,
@@ -27,7 +27,7 @@ export function AppSidebar(): JSX.Element {
   const t = {
     browse: language === 'fa' ? 'مرور' : 'Browse',
     movies: language === 'fa' ? 'فیلم‌ها' : 'Movies',
-    series: language === 'fa' ? 'سریال‌ها' : 'Series',
+    series: language === 'fa' ? 'س��یال‌ها' : 'Series',
     myList: language === 'fa' ? 'لیست من' : 'My List',
     watchlist: language === 'fa' ? 'دیدنی‌ها' : 'Watchlist',
     genres: language === 'fa' ? 'ژانرها' : 'Genres',

@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { useMovieStore } from '@/lib/store';
-import { GENRES } from '@/shared/mock-data';
+import { GENRES } from '@shared/mock-data';
 import { cn } from '@/lib/utils';
 export function GenreBar() {
   const activeGenre = useMovieStore(s => s.activeGenre);
