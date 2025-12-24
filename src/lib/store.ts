@@ -13,9 +13,10 @@ interface MovieState {
   userProfile: UserProfile | null;
   language: Language;
   direction: Direction;
+  isSidebarOpen: boolean;
   // Actions
   setMovies: (movies: Movie[]) => void;
-  setFeaturedMovie: (movie: Movie) => void;
+  setFeaturedMovie: (movie: Movie | null) => void;
   setSelectedMovieId: (id: string | null) => void;
   setLoading: (loading: boolean) => void;
   setSearchQuery: (query: string) => void;
@@ -24,6 +25,8 @@ interface MovieState {
   setContentType: (type: 'all' | 'movie' | 'series') => void;
   setUserProfile: (profile: UserProfile | null) => void;
   setLanguage: (lang: Language) => void;
+  toggleSidebar: () => void;
+  setSidebarOpen: (open: boolean) => void;
 }
 export const useMovieStore = create<MovieState>((set) => ({
   movies: [],
@@ -37,8 +40,9 @@ export const useMovieStore = create<MovieState>((set) => ({
   userProfile: null,
   language: 'en',
   direction: 'ltr',
+  isSidebarOpen: true,
   setMovies: (movies) => set({ movies }),
-  setFeaturedMovie: (movie) => set({ featuredMovie: movie }),
+  setFeaturedMovie: (featuredMovie) => set({ featuredMovie }),
   setSelectedMovieId: (selectedMovieId) => set({ selectedMovieId }),
   setLoading: (isLoading) => set({ isLoading }),
   setSearchQuery: (searchQuery) => set({ searchQuery }),
@@ -46,8 +50,12 @@ export const useMovieStore = create<MovieState>((set) => ({
   setMinRating: (minRating) => set({ minRating }),
   setContentType: (contentType) => set({ contentType }),
   setUserProfile: (userProfile) => set({ userProfile }),
-  setLanguage: (language) => set({ 
-    language, 
-    direction: language === 'fa' ? 'rtl' : 'ltr' 
-  }),
+  setLanguage: (language) => {
+    const direction = language === 'fa' ? 'rtl' : 'ltr';
+    document.documentElement.dir = direction;
+    document.documentElement.lang = language;
+    set({ language, direction });
+  },
+  toggleSidebar: () => set((state) => ({ isSidebarOpen: !state.isSidebarOpen })),
+  setSidebarOpen: (isSidebarOpen) => set({ isSidebarOpen }),
 }));
