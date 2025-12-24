@@ -3,7 +3,12 @@ import type { Env } from './core-utils';
 import { ok, bad, notFound } from './core-utils';
 import { MOCK_MOVIES } from "../shared/mock-data";
 import { UserProfileEntity } from "./entities";
+let routesRegistered = false;
 export function userRoutes(app: Hono<{ Bindings: Env }>) {
+  if (routesRegistered) {
+    console.warn('[WORKER] Attempted to register user routes multiple times. Skipping.');
+    return;
+  }
   console.log('[WORKER] Registering user routes...');
   // Movie Discovery
   app.get('/api/movies', async (c) => {
@@ -16,8 +21,8 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
       let filtered = [...MOCK_MOVIES];
       if (search) {
         const query = search.toLowerCase();
-        filtered = filtered.filter(m => 
-          m.title.toLowerCase().includes(query) || 
+        filtered = filtered.filter(m =>
+          m.title.toLowerCase().includes(query) ||
           m.originalTitle?.toLowerCase().includes(query) ||
           m.description.toLowerCase().includes(query)
         );
@@ -58,19 +63,13 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
   app.get('/api/user/profile', async (c) => {
     try {
       const userId = 'u1';
-      console.log(`[WORKER] Accessing profile for user: ${userId}`);
-      // Ensure the Global Durable Object is available and seeded
       await UserProfileEntity.ensureSeed(c.env);
       const entity = new UserProfileEntity(c.env, userId);
       const profile = await entity.getState();
-      if (!profile) {
-        console.warn(`[WORKER] Profile not found for ${userId}, returning default`);
-        return ok(c, UserProfileEntity.initialState);
-      }
-      return ok(c, profile);
+      return ok(c, profile || UserProfileEntity.initialState);
     } catch (err) {
       console.error(`[WORKER] profile endpoint error:`, err);
-      return bad(c, `Failed to access profile persistence: ${err instanceof Error ? err.message : String(err)}`);
+      return bad(c, `Failed to access profile persistence`);
     }
   });
   app.post('/api/user/favorites', async (c) => {
@@ -106,4 +105,5 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
       return bad(c, 'Persistence failure updating history');
     }
   });
+  routesRegistered = true;
 }
