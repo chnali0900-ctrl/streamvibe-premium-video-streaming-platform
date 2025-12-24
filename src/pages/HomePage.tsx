@@ -1,138 +1,138 @@
-// Home page of the app.
-// Currently a demo placeholder "please wait" screen.
-// Replace this file with your actual app UI. Do not delete it to use some other file as homepage. Simply replace the entire contents of this file.
-
-import { useEffect, useMemo, useState } from 'react'
-import { Sparkles } from 'lucide-react'
-
-import { ThemeToggle } from '@/components/ThemeToggle'
-import { HAS_TEMPLATE_DEMO, TemplateDemo } from '@/components/TemplateDemo'
-import { Button } from '@/components/ui/button'
-import { Toaster, toast } from '@/components/ui/sonner'
-
-function formatDuration(ms: number): string {
-  const total = Math.max(0, Math.floor(ms / 1000))
-  const m = Math.floor(total / 60)
-  const s = total % 60
-  return `${m}:${s.toString().padStart(2, '0')}`
-}
-
+import React, { useEffect } from 'react';
+import { Search, Clapperboard } from 'lucide-react';
+import { useMovieStore } from '@/lib/store';
+import { api } from '@/lib/api-client';
+import { HeroSection } from '@/components/movie/HeroSection';
+import { MovieCard } from '@/components/movie/MovieCard';
+import { FilterSidebar } from '@/components/movie/FilterSidebar';
+import { Input } from '@/components/ui/input';
+import { SidebarProvider, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar';
+import { AppSidebar } from '@/components/app-sidebar';
+import { Toaster } from '@/components/ui/sonner';
+import { Movie } from '@shared/types';
 export function HomePage() {
-  const [coins, setCoins] = useState(0)
-  const [isRunning, setIsRunning] = useState(false)
-  const [startedAt, setStartedAt] = useState<number | null>(null)
-  const [elapsedMs, setElapsedMs] = useState(0)
-
+  const movies = useMovieStore(s => s.movies);
+  const featuredMovie = useMovieStore(s => s.featuredMovie);
+  const isLoading = useMovieStore(s => s.isLoading);
+  const activeGenre = useMovieStore(s => s.activeGenre);
+  const searchQuery = useMovieStore(s => s.searchQuery);
+  const minRating = useMovieStore(s => s.minRating);
+  const contentType = useMovieStore(s => s.contentType);
+  const setMovies = useMovieStore(s => s.setMovies);
+  const setFeaturedMovie = useMovieStore(s => s.setFeaturedMovie);
+  const setLoading = useMovieStore(s => s.setLoading);
+  const setSearchQuery = useMovieStore(s => s.setSearchQuery);
   useEffect(() => {
-    if (!isRunning || startedAt === null) return
-
-    const t = setInterval(() => {
-      setElapsedMs(Date.now() - startedAt)
-    }, 250)
-
-    return () => clearInterval(t)
-  }, [isRunning, startedAt])
-
-  const formatted = useMemo(() => formatDuration(elapsedMs), [elapsedMs])
-
-  const onPleaseWait = () => {
-    setCoins((c) => c + 1)
-
-    if (!isRunning) {
-      // Resume from the current elapsed time
-      setStartedAt(Date.now() - elapsedMs)
-      setIsRunning(true)
-      toast.success('Building your app…', {
-        description: "Hang tight — we're setting everything up.",
-      })
-      return
-    }
-
-    setIsRunning(false)
-    toast.info('Still working…', {
-      description: 'You can come back in a moment.',
-    })
-  }
-
-  const onReset = () => {
-    setCoins(0)
-    setIsRunning(false)
-    setStartedAt(null)
-    setElapsedMs(0)
-    toast('Reset complete')
-  }
-
-  const onAddCoin = () => {
-    setCoins((c) => c + 1)
-    toast('Coin added')
-  }
-
+    const fetchInitialData = async () => {
+      try {
+        const featured = await api<Movie>('/api/movies/featured');
+        setFeaturedMovie(featured);
+      } catch (err) {
+        console.error('Failed to fetch featured movie', err);
+      }
+    };
+    fetchInitialData();
+  }, [setFeaturedMovie]);
+  useEffect(() => {
+    const fetchMovies = async () => {
+      setLoading(true);
+      try {
+        const params = new URLSearchParams({
+          genre: activeGenre,
+          search: searchQuery,
+          minRating: minRating.toString(),
+          type: contentType
+        });
+        const data = await api<{ items: Movie[] }>(`/api/movies?${params.toString()}`);
+        setMovies(data.items);
+      } catch (err) {
+        console.error('Failed to fetch movies', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    const timer = setTimeout(fetchMovies, 300);
+    return () => clearTimeout(timer);
+  }, [activeGenre, searchQuery, minRating, contentType, setMovies, setLoading]);
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-background text-foreground p-4 overflow-hidden relative">
-      <ThemeToggle />
-      <div className="absolute inset-0 bg-gradient-rainbow opacity-10 dark:opacity-20 pointer-events-none" />
-
-      <div className="text-center space-y-8 relative z-10 animate-fade-in w-full">
-        <div className="flex justify-center">
-          <div className="w-16 h-16 rounded-2xl bg-gradient-primary flex items-center justify-center shadow-primary floating">
-            <Sparkles className="w-8 h-8 text-white rotating" />
-          </div>
-        </div>
-
-        <div className="space-y-3">
-          <h1 className="text-5xl md:text-7xl font-display font-bold text-balance leading-tight">
-            Creating your <span className="text-gradient">app</span>
-          </h1>
-          <p className="text-lg md:text-xl text-muted-foreground max-w-xl mx-auto text-pretty">
-            Your application would be ready soon.
-          </p>
-        </div>
-
-        {HAS_TEMPLATE_DEMO ? (
-          <div className="max-w-5xl mx-auto text-left">
-            <TemplateDemo />
-          </div>
-        ) : (
-          <>
-            <div className="flex justify-center gap-4">
-              <Button
-                size="lg"
-                onClick={onPleaseWait}
-                className="btn-gradient px-8 py-4 text-lg font-semibold hover:-translate-y-0.5 transition-all duration-200"
-                aria-live="polite"
-              >
-                Please Wait
-              </Button>
-            </div>
-
-            <div className="flex items-center justify-center gap-6 text-sm text-muted-foreground">
-              <div>
-                Time elapsed:{' '}
-                <span className="font-medium tabular-nums text-foreground">{formatted}</span>
+    <div className="min-h-screen bg-background text-foreground selection:bg-red-600/30">
+      <SidebarProvider defaultOpen={true}>
+        <AppSidebar />
+        <SidebarInset>
+          <header className="sticky top-0 z-40 w-full border-b border-white/5 bg-background/80 backdrop-blur-xl transition-all duration-300">
+            <div className="flex h-16 items-center gap-4 px-6">
+              <SidebarTrigger />
+              <div className="flex items-center gap-2 mr-auto">
+                <Clapperboard className="w-6 h-6 text-red-600" />
+                <span className="text-xl font-bold tracking-tighter">STREAM<span className="text-red-600">VIBE</span></span>
               </div>
-              <div>
-                Coins:{' '}
-                <span className="font-medium tabular-nums text-foreground">{coins}</span>
+              <div className="relative max-w-md w-full hidden md:block">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500" />
+                <Input 
+                  placeholder="Search titles, actors, genres..." 
+                  className="pl-10 bg-zinc-900/50 border-zinc-800 focus:ring-red-600/50"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </div>
+              <div className="h-8 w-8 rounded-full bg-zinc-800 flex items-center justify-center cursor-pointer border border-zinc-700 overflow-hidden">
+                <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" alt="User" />
               </div>
             </div>
-
-            <div className="flex justify-center gap-2">
-              <Button variant="outline" size="sm" onClick={onReset}>
-                Reset
-              </Button>
-              <Button variant="outline" size="sm" onClick={onAddCoin}>
-                Add Coin
-              </Button>
+          </header>
+          <main className="flex-1 overflow-x-hidden">
+            <HeroSection movie={featuredMovie} />
+            <div className="max-w-[1600px] mx-auto px-6 lg:px-12 py-12 flex gap-10">
+              {/* Left Sidebar Filters */}
+              <aside className="hidden lg:block w-64 flex-shrink-0 sticky top-28 self-start">
+                <FilterSidebar />
+              </aside>
+              {/* Main Grid */}
+              <div className="flex-1 space-y-8">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-2xl font-bold tracking-tight">
+                    {searchQuery ? `Results for "${searchQuery}"` : activeGenre !== 'All' ? `${activeGenre} Collection` : 'Trending Now'}
+                  </h2>
+                  <span className="text-sm text-zinc-500 font-medium">{movies.length} titles available</span>
+                </div>
+                {isLoading ? (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+                    {[...Array(10)].map((_, i) => (
+                      <div key={i} className="aspect-[2/3] bg-zinc-900 animate-pulse rounded-lg" />
+                    ))}
+                  </div>
+                ) : movies.length > 0 ? (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+                    {movies.map((movie) => (
+                      <MovieCard key={movie.id} movie={movie} />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center py-24 text-zinc-500 space-y-4">
+                    <Clapperboard className="w-16 h-16 opacity-20" />
+                    <p className="text-lg">No titles found matching your filters.</p>
+                  </div>
+                )}
+              </div>
             </div>
-          </>
-        )}
-      </div>
-
-      <footer className="absolute bottom-8 text-center text-muted-foreground/80">
-        <p>Powered by Cloudflare</p>
-      </footer>
-
+          </main>
+          <footer className="border-t border-white/5 py-12 px-12 mt-12 bg-zinc-950/50">
+            <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-8">
+              <div className="flex items-center gap-2">
+                <Clapperboard className="w-5 h-5 text-red-600" />
+                <span className="text-lg font-bold tracking-tighter uppercase">StreamVibe</span>
+              </div>
+              <div className="flex gap-8 text-sm text-zinc-500">
+                <a href="#" className="hover:text-white transition-colors">Privacy Policy</a>
+                <a href="#" className="hover:text-white transition-colors">Terms of Service</a>
+                <a href="#" className="hover:text-white transition-colors">Help Center</a>
+              </div>
+              <p className="text-xs text-zinc-600">�� 2024 StreamVibe Entertainment Inc.</p>
+            </div>
+          </footer>
+        </SidebarInset>
+      </SidebarProvider>
       <Toaster richColors closeButton />
     </div>
-  )
+  );
 }
