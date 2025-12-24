@@ -1,8 +1,8 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { useMovieStore } from '@/lib/store';
-import { GENRES } from '@shared/mock-data';
 import { cn } from '@/lib/utils';
+const GENRES = ['All', 'Action', 'Sci-Fi', 'Thriller', 'Adventure', 'Fantasy', 'Mystery', 'Romance', 'Comedy', 'Drama'];
 export function GenreBar() {
   const activeGenre = useMovieStore(s => s.activeGenre);
   const setGenre = useMovieStore(s => s.setGenre);
@@ -17,8 +17,8 @@ export function GenreBar() {
               onClick={() => setGenre(genre)}
               className={cn(
                 "relative px-6 py-2 rounded-full text-sm font-bold transition-all duration-300 whitespace-nowrap border",
-                isActive
-                  ? "text-white border-red-600"
+                isActive 
+                  ? "text-white border-red-600" 
                   : "text-zinc-400 border-zinc-800 hover:border-zinc-600 hover:text-white bg-zinc-900/40"
               )}
             >

@@ -1,11 +1,12 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { Search, Clapperboard, User, History, Bookmark, TrendingUp, RotateCcw, AlertCircle } from 'lucide-react';
+import React, { useEffect, useMemo, useState, useCallback } from 'react';
+import { Search, Clapperboard, User, History, Bookmark, TrendingUp, RotateCcw, AlertCircle, Filter } from 'lucide-react';
 import { useMovieStore } from '@/lib/store';
 import { api } from '@/lib/api-client';
 import { HeroSection } from '@/components/movie/HeroSection';
 import { MovieCard } from '@/components/movie/MovieCard';
 import { FilterSidebar } from '@/components/movie/FilterSidebar';
 import { MovieDetail } from '@/components/movie/MovieDetail';
+import { GenreBar } from '@/components/movie/GenreBar';
 import { LanguageToggle } from '@/components/LanguageToggle';
 import { Input } from '@/components/ui/input';
 import { SidebarProvider, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar';
@@ -16,6 +17,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 export function HomePage() {
   const movies = useMovieStore(s => s.movies);
   const allMovies = useMovieStore(s => s.allMovies);
@@ -36,7 +38,8 @@ export function HomePage() {
   const setUserProfile = useMovieStore(s => s.setUserProfile);
   const resetFilters = useMovieStore(s => s.resetFilters);
   const [initError, setInitError] = useState<string | null>(null);
-  const init = async () => {
+  const [sortBy, setSortBy] = useState('newest');
+  const init = useCallback(async () => {
     setInitError(null);
     try {
       const [featured, profile, catalog] = await Promise.allSettled([
@@ -47,7 +50,6 @@ export function HomePage() {
       if (featured.status === 'fulfilled') setFeaturedMovie(featured.value);
       if (profile.status === 'fulfilled') setUserProfile(profile.value);
       if (catalog.status === 'fulfilled') setAllMovies(catalog.value.items || []);
-      // If critical profile/catalog failed, set error
       if (profile.status === 'rejected' || catalog.status === 'rejected') {
         const err = profile.status === 'rejected' ? profile.reason : (catalog as any).reason;
         setInitError(err?.message || "Critical platform data failed to load");
@@ -55,10 +57,10 @@ export function HomePage() {
     } catch (err) {
       setInitError(err instanceof Error ? err.message : "System initialization failed");
     }
-  };
+  }, [setFeaturedMovie, setUserProfile, setAllMovies]);
   useEffect(() => {
     init();
-  }, [setFeaturedMovie, setUserProfile, setAllMovies]);
+  }, [init]);
   useEffect(() => {
     let mounted = true;
     const fetchMovies = async () => {
@@ -69,6 +71,7 @@ export function HomePage() {
         if (searchQuery) params.append('search', searchQuery);
         if (minRating > 0) params.append('minRating', minRating.toString());
         if (contentType && contentType !== 'all') params.append('type', contentType);
+        params.append('sortBy', sortBy);
         params.append('limit', '40');
         const data = await api<{ items: Movie[] }>(`/api/movies?${params.toString()}`);
         if (mounted) setMovies(data.items || []);
@@ -83,23 +86,31 @@ export function HomePage() {
       mounted = false;
       clearTimeout(timer);
     };
-  }, [activeGenre, searchQuery, minRating, contentType, setMovies, setLoading]);
+  }, [activeGenre, searchQuery, minRating, contentType, sortBy, setMovies, setLoading]);
   const t = useMemo(() => ({
     brand: language === 'fa' ? 'استریم‌ویب' : 'STREAMVIBE',
-    search: language === 'fa' ? 'جستجوی فیلم، سری��ل...' : 'Search titles, actors...',
+    search: language === 'fa' ? 'جستجوی فیلم، سریال...' : 'Search titles, actors...',
     results: language === 'fa' ? 'نتایج برای' : 'Results for',
     collection: language === 'fa' ? 'مجموعه' : 'Collection',
-    trending: language === 'fa' ? 'برترین‌های امروز' : 'Trending Now',
-    myList: language === 'fa' ? 'لی��ت من' : 'My List',
+    trending: language === 'fa' ? 'برترین‌های امرو��' : 'Trending Now',
+    myList: language === 'fa' ? 'لیست من' : 'My List',
+    watchlist: language === 'fa' ? 'دیدنی‌ها' : 'Watchlist',
     continue: language === 'fa' ? 'ادامه تماشا' : 'Continue Watching',
     noResults: language === 'fa' ? 'عنوانی یافت نشد' : 'No titles found',
     reset: language === 'fa' ? 'تنظیم مجدد فیلترها' : 'Reset Filters',
     errorTitle: language === 'fa' ? 'خطای سامانه' : 'Platform Connectivity Error',
-    errorRetry: language === 'fa' ? 'تلاش مجدد' : 'Retry Connection'
+    errorRetry: language === 'fa' ? 'تلاش مجدد' : 'Retry Connection',
+    sortBy: language === 'fa' ? 'مرتب‌سازی' : 'Sort By',
+    newest: language === 'fa' ? 'جدیدترین' : 'Newest',
+    rating: language === 'fa' ? 'امتیاز' : 'Top Rated'
   }), [language]);
   const favoriteMovies = useMemo(() => 
     allMovies.filter(m => userProfile?.favorites.includes(m.id)),
     [allMovies, userProfile?.favorites]
+  );
+  const watchlistMovies = useMemo(() => 
+    allMovies.filter(m => userProfile?.watchlist.includes(m.id)),
+    [allMovies, userProfile?.watchlist]
   );
   const historyMovies = useMemo(() => 
     allMovies.filter(m => userProfile?.history.some(h => h.movieId === m.id)),
@@ -177,10 +188,11 @@ export function HomePage() {
                   <FilterSidebar />
                 </aside>
                 <div className="flex-1 space-y-20">
+                  <GenreBar />
                   {!searchQuery && activeGenre === 'All' && !isLoading && (
                     <>
                       {historyMovies.length > 0 && (
-                        <section className="space-y-8">
+                        <section className="space-y-8 animate-fade-in">
                           <div className="flex items-center gap-3">
                             <History className="w-6 h-6 text-red-600" />
                             <h2 className="text-3xl font-black tracking-tight">{t.continue.toUpperCase()}</h2>
@@ -192,8 +204,21 @@ export function HomePage() {
                           </div>
                         </section>
                       )}
+                      {watchlistMovies.length > 0 && (
+                        <section className="space-y-8 animate-fade-in">
+                          <div className="flex items-center gap-3">
+                            <Filter className="w-6 h-6 text-red-600" />
+                            <h2 className="text-3xl font-black tracking-tight">{t.watchlist.toUpperCase()}</h2>
+                          </div>
+                          <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-8">
+                            {watchlistMovies.map((movie) => (
+                              <MovieCard key={`watchlist-${movie.id}`} movie={movie} />
+                            ))}
+                          </div>
+                        </section>
+                      )}
                       {favoriteMovies.length > 0 && (
-                        <section className="space-y-8">
+                        <section className="space-y-8 animate-fade-in">
                           <div className="flex items-center gap-3">
                             <Bookmark className="w-6 h-6 text-red-600" />
                             <h2 className="text-3xl font-black tracking-tight">{t.myList.toUpperCase()}</h2>
@@ -208,14 +233,25 @@ export function HomePage() {
                     </>
                   )}
                   <section className="space-y-10">
-                    <div className="flex items-center justify-between border-b border-white/10 pb-6">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-white/10 pb-6 gap-4">
                       <div className="flex items-center gap-3">
                         <TrendingUp className="w-6 h-6 text-red-600" />
                         <h2 className="text-3xl md:text-4xl font-black tracking-tight uppercase">
                           {searchQuery ? `${t.results} "${searchQuery}"` : activeGenre !== 'All' ? `${activeGenre} ${t.collection}` : t.trending}
                         </h2>
                       </div>
-                      {!isLoading && <span className="text-xs text-zinc-500 font-black tracking-[0.2em] uppercase bg-white/5 px-3 py-1.5 rounded-full border border-white/5">{movies.length} TITLES</span>}
+                      <div className="flex items-center gap-4">
+                        {!isLoading && <span className="text-[10px] text-zinc-500 font-black tracking-[0.2em] uppercase bg-white/5 px-3 py-1.5 rounded-full border border-white/5 whitespace-nowrap">{movies.length} TITLES</span>}
+                        <Select value={sortBy} onValueChange={setSortBy}>
+                          <SelectTrigger className="w-[140px] bg-zinc-900 border-zinc-800 text-xs font-bold h-9">
+                            <SelectValue placeholder={t.sortBy} />
+                          </SelectTrigger>
+                          <SelectContent className="bg-zinc-950 border-zinc-800 text-white">
+                            <SelectItem value="newest">{t.newest}</SelectItem>
+                            <SelectItem value="rating">{t.rating}</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
                     </div>
                     {isLoading ? (
                       <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-8">
