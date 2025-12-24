@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { Search, Clapperboard, User, History, Bookmark, TrendingUp } from 'lucide-react';
 import { useMovieStore } from '@/lib/store';
 import { api } from '@/lib/api-client';
@@ -15,7 +15,9 @@ import { Movie, UserProfile } from '@shared/types';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Skeleton } from '@/components/ui/skeleton';
 export function HomePage() {
+  // Store Selectors (One field per call)
   const movies = useMovieStore(s => s.movies);
+  const allMovies = useMovieStore(s => s.allMovies);
   const featuredMovie = useMovieStore(s => s.featuredMovie);
   const isLoading = useMovieStore(s => s.isLoading);
   const activeGenre = useMovieStore(s => s.activeGenre);
@@ -25,23 +27,27 @@ export function HomePage() {
   const userProfile = useMovieStore(s => s.userProfile);
   const direction = useMovieStore(s => s.direction);
   const language = useMovieStore(s => s.language);
+  // Store Actions
   const setMovies = useMovieStore(s => s.setMovies);
+  const setAllMovies = useMovieStore(s => s.setAllMovies);
   const setFeaturedMovie = useMovieStore(s => s.setFeaturedMovie);
   const setLoading = useMovieStore(s => s.setLoading);
   const setSearchQuery = useMovieStore(s => s.setSearchQuery);
   const setUserProfile = useMovieStore(s => s.setUserProfile);
-  // Initialize data
+  // Initialize data (Featured, Profile, and Full Catalog)
   useEffect(() => {
     let mounted = true;
     const init = async () => {
       try {
-        const [featured, profile] = await Promise.all([
+        const [featured, profile, catalog] = await Promise.all([
           api<Movie>('/api/movies/featured'),
-          api<UserProfile>('/api/user/profile')
+          api<UserProfile>('/api/user/profile'),
+          api<{ items: Movie[] }>('/api/movies?limit=100')
         ]);
         if (mounted) {
           setFeaturedMovie(featured);
           setUserProfile(profile);
+          setAllMovies(catalog.items || []);
         }
       } catch (err) {
         console.error('Init failed', err);
@@ -49,20 +55,19 @@ export function HomePage() {
     };
     init();
     return () => { mounted = false; };
-  }, [setFeaturedMovie, setUserProfile]);
-  // Handle filtered movie fetching
+  }, [setFeaturedMovie, setUserProfile, setAllMovies]);
+  // Handle filtered movie fetching for discovery grid
   useEffect(() => {
     let mounted = true;
     const fetchMovies = async () => {
       setLoading(true);
       try {
-        const params = new URLSearchParams({
-          genre: activeGenre,
-          search: searchQuery,
-          minRating: minRating.toString(),
-          type: contentType,
-          limit: '20'
-        });
+        const params = new URLSearchParams();
+        if (activeGenre && activeGenre !== 'All') params.append('genre', activeGenre);
+        if (searchQuery) params.append('search', searchQuery);
+        if (minRating > 0) params.append('minRating', minRating.toString());
+        if (contentType && contentType !== 'all') params.append('type', contentType);
+        params.append('limit', '40');
         const data = await api<{ items: Movie[] }>(`/api/movies?${params.toString()}`);
         if (mounted) {
           setMovies(data.items || []);
@@ -79,17 +84,24 @@ export function HomePage() {
       clearTimeout(timer);
     };
   }, [activeGenre, searchQuery, minRating, contentType, setMovies, setLoading]);
-  const t = {
-    brand: language === 'fa' ? 'استری��‌ویب' : 'STREAMVIBE',
+  const t = useMemo(() => ({
+    brand: language === 'fa' ? 'استریم‌ویب' : 'STREAMVIBE',
     search: language === 'fa' ? 'جستجوی فیلم، سریال...' : 'Search titles, actors...',
-    results: language === 'fa' ? 'نت��یج برای' : 'Results for',
+    results: language === 'fa' ? 'نتایج برای' : 'Results for',
     collection: language === 'fa' ? 'مجموعه' : 'Collection',
     trending: language === 'fa' ? 'برترین‌های امرو��' : 'Trending Now',
     myList: language === 'fa' ? 'لیست من' : 'My List',
     continue: language === 'fa' ? 'ادامه تماشا' : 'Continue Watching'
-  };
-  const favoriteMovies = movies.filter(m => userProfile?.favorites.includes(m.id));
-  const historyMovies = movies.filter(m => userProfile?.history.some(h => h.movieId === m.id));
+  }), [language]);
+  // Personalized Rows from FULL catalog
+  const favoriteMovies = useMemo(() => 
+    allMovies.filter(m => userProfile?.favorites.includes(m.id)),
+    [allMovies, userProfile?.favorites]
+  );
+  const historyMovies = useMemo(() => 
+    allMovies.filter(m => userProfile?.history.some(h => h.movieId === m.id)),
+    [allMovies, userProfile?.history]
+  );
   return (
     <div className="min-h-screen bg-background text-foreground selection:bg-red-600/30 font-sans" dir={direction}>
       <SidebarProvider defaultOpen={true}>
@@ -116,7 +128,11 @@ export function HomePage() {
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <button className="h-9 w-9 rounded-full bg-zinc-800 flex items-center justify-center cursor-pointer border border-zinc-700 overflow-hidden ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-                      {userProfile?.avatarUrl ? <img src={userProfile.avatarUrl} alt="User" /> : <User className="w-4 h-4" />}
+                      {userProfile?.avatarUrl ? (
+                        <img src={userProfile.avatarUrl} alt="User" className="w-full h-full object-cover" />
+                      ) : (
+                        <User className="w-4 h-4" />
+                      )}
                     </button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-56 bg-zinc-950 border-zinc-800 text-white shadow-2xl">
@@ -131,16 +147,15 @@ export function HomePage() {
           </header>
           <main className="flex-1 overflow-x-hidden">
             <HeroSection movie={featuredMovie} />
-            <div className="max-w-[1600px] mx-auto px-6 lg:px-12 py-12 flex gap-10">
+            <div className="max-w-[1600px] mx-auto px-6 lg:px-12 py-12 flex flex-col lg:flex-row gap-10">
               <aside className="hidden lg:block w-64 flex-shrink-0 sticky top-28 self-start">
                 <FilterSidebar />
               </aside>
               <div className="flex-1 space-y-12">
-                {/* Personalized Rows (Visible only when no active filter/search) */}
                 {!searchQuery && activeGenre === 'All' && !isLoading && (
                   <>
                     {historyMovies.length > 0 && (
-                      <section className="space-y-4">
+                      <section className="space-y-4 animate-fade-in">
                         <div className="flex items-center gap-2">
                           <History className="w-5 h-5 text-red-600" />
                           <h2 className="text-xl font-bold tracking-tight">{t.continue}</h2>
@@ -153,7 +168,7 @@ export function HomePage() {
                       </section>
                     )}
                     {favoriteMovies.length > 0 && (
-                      <section className="space-y-4">
+                      <section className="space-y-4 animate-fade-in">
                         <div className="flex items-center gap-2">
                           <Bookmark className="w-5 h-5 text-red-600" />
                           <h2 className="text-xl font-bold tracking-tight">{t.myList}</h2>
@@ -167,7 +182,6 @@ export function HomePage() {
                     )}
                   </>
                 )}
-                {/* Main Discovery Grid */}
                 <section className="space-y-6">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
@@ -198,7 +212,7 @@ export function HomePage() {
                     <div className="flex flex-col items-center justify-center py-24 text-zinc-500 space-y-4 border border-dashed border-zinc-800 rounded-xl">
                       <Clapperboard className="w-16 h-16 opacity-10" />
                       <p className="text-lg font-medium">No titles found.</p>
-                      <button 
+                      <button
                         onClick={() => { setSearchQuery(''); }}
                         className="text-red-500 hover:underline text-sm"
                       >

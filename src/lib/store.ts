@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { Movie, UserProfile, Language, Direction } from '@shared/types';
 interface MovieState {
   movies: Movie[];
+  allMovies: Movie[];
   featuredMovie: Movie | null;
   selectedMovieId: string | null;
   isLoading: boolean;
@@ -9,13 +10,13 @@ interface MovieState {
   activeGenre: string;
   minRating: number;
   contentType: 'all' | 'movie' | 'series';
-  // User Profile
   userProfile: UserProfile | null;
   language: Language;
   direction: Direction;
   isSidebarOpen: boolean;
   // Actions
   setMovies: (movies: Movie[]) => void;
+  setAllMovies: (movies: Movie[]) => void;
   setFeaturedMovie: (movie: Movie | null) => void;
   setSelectedMovieId: (id: string | null) => void;
   setLoading: (loading: boolean) => void;
@@ -30,6 +31,7 @@ interface MovieState {
 }
 export const useMovieStore = create<MovieState>((set) => ({
   movies: [],
+  allMovies: [],
   featuredMovie: null,
   selectedMovieId: null,
   isLoading: false,
@@ -42,6 +44,7 @@ export const useMovieStore = create<MovieState>((set) => ({
   direction: 'ltr',
   isSidebarOpen: true,
   setMovies: (movies) => set({ movies }),
+  setAllMovies: (allMovies) => set({ allMovies }),
   setFeaturedMovie: (featuredMovie) => set({ featuredMovie }),
   setSelectedMovieId: (selectedMovieId) => set({ selectedMovieId }),
   setLoading: (isLoading) => set({ isLoading }),
