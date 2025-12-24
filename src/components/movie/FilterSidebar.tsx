@@ -1,16 +1,16 @@
 import React from 'react';
 import { useMovieStore } from '@/lib/store';
-import { 
-  Accordion, 
-  AccordionContent, 
-  AccordionItem, 
-  AccordionTrigger 
+import { GENRES } from '@/shared/mock-data';
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger
 } from '@/components/ui/accordion';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-const GENRES = ['All', 'Action', 'Sci-Fi', 'Thriller', 'Adventure', 'Fantasy', 'Mystery', 'Romance', 'Comedy', 'Drama'];
 export function FilterSidebar() {
   const activeGenre = useMovieStore(s => s.activeGenre);
   const minRating = useMovieStore(s => s.minRating);
@@ -29,13 +29,13 @@ export function FilterSidebar() {
               <div className="grid grid-cols-1 gap-2 pt-2">
                 {GENRES.map((genre) => (
                   <div key={genre} className="flex items-center space-x-2">
-                    <Checkbox 
+                    <Checkbox
                       id={`genre-${genre}`}
                       checked={activeGenre === genre}
                       onCheckedChange={() => setGenre(genre)}
                       className="border-zinc-700 data-[state=checked]:bg-red-600 data-[state=checked]:border-red-600"
                     />
-                    <Label 
+                    <Label
                       htmlFor={`genre-${genre}`}
                       className="text-sm font-normal text-zinc-400 cursor-pointer hover:text-white transition-colors"
                     >
@@ -69,10 +69,10 @@ export function FilterSidebar() {
             <AccordionTrigger className="text-sm font-medium hover:no-underline">Minimum Rating</AccordionTrigger>
             <AccordionContent className="pt-4 px-2">
               <div className="space-y-4">
-                <Slider 
-                  value={[minRating]} 
-                  max={10} 
-                  step={0.5} 
+                <Slider
+                  value={[minRating]}
+                  max={10}
+                  step={0.5}
                   onValueChange={(val) => setMinRating(val[0])}
                   className="[&_[role=slider]]:bg-red-600 [&_[role=slider]]:border-red-600"
                 />

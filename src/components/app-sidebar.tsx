@@ -1,5 +1,6 @@
 import React from "react";
-import { Home, Clapperboard, MonitorPlay, Bookmark, Search, TrendingUp, Sparkles, Filter } from "lucide-react";
+import { Home, Clapperboard, MonitorPlay, Bookmark, Search, Sparkles, Filter } from "lucide-react";
+import { GENRES } from "@/shared/mock-data";
 import {
   Sidebar,
   SidebarContent,
@@ -13,7 +14,6 @@ import {
   SidebarMenuButton,
 } from "@/components/ui/sidebar";
 import { useMovieStore } from "@/lib/store";
-const GENRES = ['All', 'Action', 'Sci-Fi', 'Thriller', 'Adventure', 'Fantasy', 'Mystery', 'Romance', 'Comedy', 'Drama'];
 export function AppSidebar(): JSX.Element {
   const language = useMovieStore(s => s.language);
   const direction = useMovieStore(s => s.direction);
