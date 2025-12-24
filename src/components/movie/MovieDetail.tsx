@@ -1,6 +1,6 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Play, Plus, Check, Star, X, Info, Volume2, Settings, Maximize, Share2, Download, CheckCircle2 } from 'lucide-react';
-import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useMovieStore } from '@/lib/store';
@@ -12,6 +12,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+
 export function MovieDetail() {
   const selectedId = useMovieStore(s => s.selectedMovieId);
   const setSelectedId = useMovieStore(s => s.setSelectedMovieId);
@@ -27,12 +28,15 @@ export function MovieDetail() {
   const [downloadProgress, setDownloadProgress] = useState(0);
   const [isDownloading, setIsDownloading] = useState(false);
   const [isDownloaded, setIsDownloaded] = useState(false);
+  const downloadIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
   const recommendations = useMemo(() => {
     if (!movie) return [];
     return allMovies
       .filter(m => m.id !== movie.id && m.genres.some(g => movie.genres.includes(g)))
       .slice(0, 12);
   }, [movie, allMovies]);
+
   const handleToggleFav = async () => {
     if (!movie) return;
     try {
@@ -51,6 +55,7 @@ export function MovieDetail() {
       console.error("Failed to toggle favorite", err);
     }
   };
+
   const handleToggleWatchlist = async () => {
     if (!movie) return;
     try {
@@ -69,16 +74,20 @@ export function MovieDetail() {
       console.error("Failed to toggle watchlist", err);
     }
   };
+
   const handleDownload = () => {
     if (isDownloading || isDownloaded) return;
     setIsDownloading(true);
     toast.info("Starting download in 4K HDR...");
     let progress = 0;
-    const interval = setInterval(() => {
+    downloadIntervalRef.current = setInterval(() => {
       progress += Math.random() * 15;
       if (progress >= 100) {
         progress = 100;
-        clearInterval(interval);
+        if (downloadIntervalRef.current) {
+          clearInterval(downloadIntervalRef.current);
+          downloadIntervalRef.current = null;
+        }
         setIsDownloading(false);
         setIsDownloaded(true);
         toast.success("Download complete: Enjoy offline viewing!");
@@ -86,7 +95,9 @@ export function MovieDetail() {
       setDownloadProgress(progress);
     }, 600);
   };
+
   if (!movie) return null;
+
   const t = {
     play: language === 'fa' ? 'پخش' : 'Play',
     cast: language === 'fa' ? 'بازیگران' : 'Cast',
@@ -94,17 +105,23 @@ export function MovieDetail() {
     myList: language === 'fa' ? 'لیست من' : 'My List',
     download: language === 'fa' ? 'بارگذاری' : 'Download',
     downloaded: language === 'fa' ? 'بارگذاری شده' : 'Downloaded',
-    watchlist: language === 'fa' ? 'دی��نی‌ها' : 'Watchlist'
+    watchlist: language === 'fa' ? 'دیدنی‌ها' : 'Watchlist'
   };
+
   return (
     <Dialog open={!!selectedId} onOpenChange={(open) => {
       if (!open) {
         setSelectedId(null);
         setIsPlaying(false);
+        if (downloadIntervalRef.current) {
+          clearInterval(downloadIntervalRef.current);
+          downloadIntervalRef.current = null;
+        }
       }
     }}>
-      <DialogContent className="max-w-6xl p-0 overflow-hidden bg-zinc-950 border-zinc-800 outline-none max-h-[92vh] flex flex-col">
+      <DialogContent className="max-w-6xl p-0 overflow-hidden bg-zinc-950 border-zinc-800 outline-none max-h-[92vh] flex flex-col" aria-describedby="movie-detail-desc">
         <DialogTitle className="sr-only">{movie.title}</DialogTitle>
+        <DialogDescription id="movie-detail-desc" className="sr-only">{movie.title} - Movie and TV show details</DialogDescription>
         <ScrollArea className="flex-1">
           <div className="relative aspect-video w-full bg-black group">
             <AnimatePresence mode="wait">
@@ -202,8 +219,8 @@ export function MovieDetail() {
                   >
                     {isDownloading ? (
                       <>
-                        <div 
-                          className="absolute bottom-0 left-0 h-1 bg-red-600 transition-all duration-300" 
+                        <div
+                          className="absolute bottom-0 left-0 h-1 bg-red-600 transition-all duration-300"
                           style={{ width: `${downloadProgress}%` }}
                         />
                         <span className="animate-pulse">DOWNLOADING {Math.round(downloadProgress)}%</span>
@@ -227,8 +244,8 @@ export function MovieDetail() {
               </div>
               <div className="space-y-8 bg-white/5 p-6 rounded-2xl border border-white/5 h-fit">
                 <div className="space-y-4">
-                   <Button 
-                    variant="ghost" 
+                   <Button
+                    variant="ghost"
                     className="w-full justify-start gap-4 hover:bg-white/10 text-zinc-400 hover:text-white transition-all h-12 rounded-xl"
                     onClick={handleToggleFav}
                    >
@@ -286,3 +303,4 @@ export function MovieDetail() {
     </Dialog>
   );
 }
+//

@@ -1,6 +1,6 @@
 import { IndexedEntity, type Env } from "./core-utils";
-import type { UserProfile, UserHistoryItem } from "../shared/types";
-import { MOCK_USER_PROFILE } from "../shared/mock-data";
+import type { UserProfile, UserHistoryItem } from "./../shared/types";
+import { MOCK_USER_PROFILE } from "./../shared/mock-data";
 export class UserProfileEntity extends IndexedEntity<UserProfile> {
   static readonly entityName = "user_profile";
   static readonly indexName = "user_profiles";
@@ -45,8 +45,8 @@ export class UserProfileEntity extends IndexedEntity<UserProfile> {
   }
 
   static async ensureSeed(env: Env): Promise<void> {
-    const list = await IndexedEntity.list<UserProfile>(env, UserProfileEntity.entityName, null, 1);
-    if (list.items.length === 0) {
+    const { items } = await UserProfileEntity.list(env, null, 1);
+    if (items.length === 0) {
       for (const data of UserProfileEntity.seedData) {
         await UserProfileEntity.create(env, data);
       }

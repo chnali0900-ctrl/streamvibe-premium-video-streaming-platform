@@ -1,8 +1,12 @@
 import { ApiResponse } from "../../shared/types"
 export async function api<T>(path: string, init?: RequestInit): Promise<T> {
   try {
+    const headers = new Headers(init?.headers || {});
+    if (init?.body && !headers.has('Content-Type')) {
+      headers.set('Content-Type', 'application/json');
+    }
     const res = await fetch(path, {
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       ...init
     });
     const contentType = res.headers.get("content-type");
