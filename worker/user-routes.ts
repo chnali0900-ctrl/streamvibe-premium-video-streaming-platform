@@ -4,6 +4,7 @@ import { ok, bad, notFound } from './core-utils';
 import { MOCK_MOVIES } from "../shared/mock-data";
 import { UserProfileEntity } from "./entities";
 export function userRoutes(app: Hono<{ Bindings: Env }>) {
+  console.log('[WORKER] Registering user routes...');
   // Movie Discovery
   app.get('/api/movies', async (c) => {
     try {
@@ -12,12 +13,11 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
       const search = c.req.query('search');
       const type = c.req.query('type');
       const sortBy = c.req.query('sortBy') || 'newest';
-      console.log(`[WORKER] Fetch movies: genre=${genre}, search=${search}, rating=${minRating}, type=${type}`);
       let filtered = [...MOCK_MOVIES];
       if (search) {
         const query = search.toLowerCase();
-        filtered = filtered.filter(m =>
-          m.title.toLowerCase().includes(query) ||
+        filtered = filtered.filter(m => 
+          m.title.toLowerCase().includes(query) || 
           m.originalTitle?.toLowerCase().includes(query) ||
           m.description.toLowerCase().includes(query)
         );
@@ -42,7 +42,7 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
       });
     } catch (err) {
       console.error(`[WORKER] movies endpoint error:`, err);
-      return bad(c, 'Failed to fetch movies');
+      return bad(c, 'Failed to fetch movies archive');
     }
   });
   app.get('/api/movies/featured', async (c) => {
@@ -51,41 +51,59 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
   });
   app.get('/api/movies/:id', async (c) => {
     const movie = MOCK_MOVIES.find(m => m.id === c.req.param('id'));
-    if (!movie) return notFound(c, 'Movie not found');
+    if (!movie) return notFound(c, 'Movie not found in archive');
     return ok(c, movie);
   });
   // User Profile & Personalization
   app.get('/api/user/profile', async (c) => {
     try {
       const userId = 'u1';
+      console.log(`[WORKER] Accessing profile for user: ${userId}`);
+      // Ensure the Global Durable Object is available and seeded
       await UserProfileEntity.ensureSeed(c.env);
       const entity = new UserProfileEntity(c.env, userId);
       const profile = await entity.getState();
+      if (!profile) {
+        console.warn(`[WORKER] Profile not found for ${userId}, returning default`);
+        return ok(c, UserProfileEntity.initialState);
+      }
       return ok(c, profile);
     } catch (err) {
       console.error(`[WORKER] profile endpoint error:`, err);
-      return bad(c, 'Failed to fetch user profile');
+      return bad(c, `Failed to access profile persistence: ${err instanceof Error ? err.message : String(err)}`);
     }
   });
   app.post('/api/user/favorites', async (c) => {
-    const { movieId } = await c.req.json();
-    if (!movieId) return bad(c, 'movieId required');
-    const entity = new UserProfileEntity(c.env, 'u1');
-    const isFav = await entity.toggleFavorite(movieId);
-    return ok(c, { isFavorite: isFav });
+    try {
+      const { movieId } = await c.req.json();
+      if (!movieId) return bad(c, 'movieId required');
+      const entity = new UserProfileEntity(c.env, 'u1');
+      const isFav = await entity.toggleFavorite(movieId);
+      return ok(c, { isFavorite: isFav });
+    } catch (err) {
+      return bad(c, 'Persistence failure updating favorites');
+    }
   });
   app.post('/api/user/watchlist', async (c) => {
-    const { movieId } = await c.req.json();
-    if (!movieId) return bad(c, 'movieId required');
-    const entity = new UserProfileEntity(c.env, 'u1');
-    const inList = await entity.toggleWatchlist(movieId);
-    return ok(c, { inWatchlist: inList });
+    try {
+      const { movieId } = await c.req.json();
+      if (!movieId) return bad(c, 'movieId required');
+      const entity = new UserProfileEntity(c.env, 'u1');
+      const inList = await entity.toggleWatchlist(movieId);
+      return ok(c, { inWatchlist: inList });
+    } catch (err) {
+      return bad(c, 'Persistence failure updating watchlist');
+    }
   });
   app.post('/api/user/history', async (c) => {
-    const { movieId, progress } = await c.req.json();
-    if (!movieId) return bad(c, 'movieId required');
-    const entity = new UserProfileEntity(c.env, 'u1');
-    await entity.updateHistory({ movieId, progress: progress ?? 0, watchedAt: Date.now() });
-    return ok(c, { success: true });
+    try {
+      const { movieId, progress } = await c.req.json();
+      if (!movieId) return bad(c, 'movieId required');
+      const entity = new UserProfileEntity(c.env, 'u1');
+      await entity.updateHistory({ movieId, progress: progress ?? 0, watchedAt: Date.now() });
+      return ok(c, { success: true });
+    } catch (err) {
+      return bad(c, 'Persistence failure updating history');
+    }
   });
 }

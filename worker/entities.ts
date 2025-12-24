@@ -1,6 +1,6 @@
 import { IndexedEntity } from "./core-utils";
-import type { UserProfile, UserHistoryItem } from "@shared/types";
-import { MOCK_USER_PROFILE } from "@shared/mock-data";
+import type { UserProfile, UserHistoryItem } from "../shared/types";
+import { MOCK_USER_PROFILE } from "../shared/mock-data";
 export class UserProfileEntity extends IndexedEntity<UserProfile> {
   static readonly entityName = "user_profile";
   static readonly indexName = "user_profiles";
@@ -17,7 +17,7 @@ export class UserProfileEntity extends IndexedEntity<UserProfile> {
     let isFavorite = false;
     await this.mutate(s => {
       const exists = s.favorites.includes(movieId);
-      const next = exists 
+      const next = exists
         ? s.favorites.filter(id => id !== movieId)
         : [...s.favorites, movieId];
       isFavorite = !exists;
@@ -29,7 +29,7 @@ export class UserProfileEntity extends IndexedEntity<UserProfile> {
     let inWatchlist = false;
     await this.mutate(s => {
       const exists = s.watchlist.includes(movieId);
-      const next = exists 
+      const next = exists
         ? s.watchlist.filter(id => id !== movieId)
         : [...s.watchlist, movieId];
       inWatchlist = !exists;

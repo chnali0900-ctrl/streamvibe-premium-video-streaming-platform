@@ -1,9 +1,9 @@
 import { ApiResponse } from "../../shared/types"
 export async function api<T>(path: string, init?: RequestInit): Promise<T> {
   try {
-    const res = await fetch(path, { 
-      headers: { 'Content-Type': 'application/json' }, 
-      ...init 
+    const res = await fetch(path, {
+      headers: { 'Content-Type': 'application/json' },
+      ...init
     });
     const contentType = res.headers.get("content-type");
     if (!contentType || !contentType.includes("application/json")) {
@@ -15,10 +15,11 @@ export async function api<T>(path: string, init?: RequestInit): Promise<T> {
       });
       throw new Error(`Server returned non-JSON response (${res.status} ${res.statusText})`);
     }
-    const json = (await res.json()) as ApiResponse<T>;
+    const json = (await res.json()) as ApiResponse<T> & { detail?: string };
     if (!res.ok || !json.success) {
-      console.error(`[API ERROR] Request to ${path} failed:`, json.error || res.statusText);
-      throw new Error(json.error || `Request failed with status ${res.status}`);
+      const errorMessage = json.detail || json.error || res.statusText;
+      console.error(`[API ERROR] Request to ${path} failed:`, errorMessage);
+      throw new Error(errorMessage || `Request failed with status ${res.status}`);
     }
     if (json.data === undefined) {
       throw new Error('API response success but data is missing');
