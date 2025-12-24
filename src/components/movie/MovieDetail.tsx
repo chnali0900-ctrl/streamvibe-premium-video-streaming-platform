@@ -119,7 +119,7 @@ export function MovieDetail() {
         }
       }
     }}>
-      <DialogContent className="max-w-6xl p-0 overflow-hidden bg-zinc-950 border-zinc-800 outline-none max-h-[92vh] flex flex-col" aria-describedby="movie-detail-desc">
+        <DialogContent className="max-w-6xl p-0 overflow-hidden bg-zinc-950 border-zinc-800 outline-none max-h-[92vh] flex flex-col">
         <DialogTitle className="sr-only">{movie.title}</DialogTitle>
         <DialogDescription id="movie-detail-desc" className="sr-only">{movie.title} - Movie and TV show details</DialogDescription>
         <ScrollArea className="flex-1">

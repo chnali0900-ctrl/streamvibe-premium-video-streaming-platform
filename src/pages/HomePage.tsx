@@ -57,7 +57,7 @@ export function HomePage() {
     } catch (err) {
       setInitError(err instanceof Error ? err.message : "System initialization failed");
     }
-  }, [setFeaturedMovie, setUserProfile, setAllMovies]);
+  }, [setInitError, setFeaturedMovie, setUserProfile, setAllMovies]);
   useEffect(() => {
     init();
   }, [init]);
@@ -72,7 +72,7 @@ export function HomePage() {
         if (minRating > 0) params.append('minRating', minRating.toString());
         if (contentType && contentType !== 'all') params.append('type', contentType);
         params.append('sortBy', sortBy);
-        params.append('limit', '40');
+        params.append('limit', '200');
         const data = await api<{ items: Movie[] }>(`/api/movies?${params.toString()}`);
         if (mounted) setMovies(data.items || []);
       } catch (err) {
